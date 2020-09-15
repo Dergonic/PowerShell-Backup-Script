@@ -1,9 +1,11 @@
-﻿########################################################
+﻿  
+########################################################
 # Name: BackupScript.ps1                              
-# Creator: Michael Seidl aka Techguy                    
+# Creator: Michael Seidl aka Techguy        
+# Edited by Dergonic            
 # CreationDate: 21.01.2014                              
 # LastModified: 31.03.2020                               
-# Version: 1.5
+# Version: 1.5_Dergonic
 # Doc: http://www.techguy.at/tag/backupscript/
 # GitHub: https://github.com/Seidlm/PowerShell-Backup-Script
 # PSVersion tested: 3 and 4
@@ -31,24 +33,22 @@
 ########################################################
 
 #Variables, only Change here
-$Destination = "\\SVATHOME002\Backup$\NB BaseIT" #Copy the Files to this Location
-$Staging = "C:\Users\seimi\Downloads\Staging"
+$Destination = "Z:\BCKP\Asterix" #Copy the Files to this Location
+$Staging = "D:\BCKP\staging"
 $ClearStaging = $true # When $true, Staging Dir will be cleared
 $Versions = "15" #How many of the last Backups you want to keep
-$BackupDirs = "C:\Users\seimi\Documents" #What Folders you want to backup
+$BackupDirs = "C:\Users\Dergonic", "D:\Stream", "D:\Vid" #What Folders you want to backup
 
 $ExcludeDirs = #This list of Directories will not be copied
-($env:SystemDrive + "\Users\.*\AppData\Local")
-#($env:SystemDrive + "\Users\.*\AppData\LocalLow"),
-#"C:\Users\seimi\OneDrive - Seidl Michael\0-Temp",
-#"C:\Users\seimi\OneDrive - Seidl Michael\0-Temp\Dir2"
+($env:SystemDrive + "\Users\.*\AppData\Local"),
+($env:SystemDrive + "\Users\.*\AppData\LocalLow")
 
 $LogfileName = "Log" #Log Name
 $LoggingLevel = "3" #LoggingLevel only for Output in Powershell Window, 1=smart, 3=Heavy
 $Zip = $true #Zip the Backup Destination
-$Use7ZIP = $false #Make sure it is installed
+$Use7ZIP = $true #Make sure it is installed
 $RemoveBackupDestination = $true #Remove copied files after Zip, only if $Zip is true
-$UseStaging = $false #only if you use ZIP, than we copy file to Staging, zip it and copy the ZIP to destination, like Staging, and to save NetworkBandwith
+$UseStaging = $true #only if you use ZIP, than we copy file to Staging, zip it and copy the ZIP to destination, like Staging, and to save NetworkBandwith
 
 
 
@@ -143,7 +143,7 @@ Function New-Backupdir {
 
 #Delete Backupdir
 Function Remove-Backupdir {
-    $Folder = Get-ChildItem $Destination | where { $_.Attributes -eq "Directory" } | Sort-Object -Property CreationTime -Descending:$false | Select-Object -First 1
+    $Folder = Get-ChildItem $Destination | Where-Object { $_.Attributes -eq "Directory" } | Sort-Object -Property CreationTime -Descending:$false | Select-Object -First 1
 
     Write-au2matorLog -Type Info -Text "Remove Dir: $Folder"
     
@@ -153,7 +153,7 @@ Function Remove-Backupdir {
 
 #Delete Zip
 Function Remove-Zip {
-    $Zip = Get-ChildItem $Destination | where { $_.Attributes -eq "Archive" -and $_.Extension -eq ".zip" } | Sort-Object -Property CreationTime -Descending:$false | Select-Object -First 1
+    $Zip = Get-ChildItem $Destination | Where-Object { $_.Attributes -eq "Archive" -and $_.Extension -eq ".zip" } | Sort-Object -Property CreationTime -Descending:$false | Select-Object -First 1
 
     Write-au2matorLog -Type Info -Text "Remove Zip: $Zip"
     
@@ -161,7 +161,7 @@ Function Remove-Zip {
 }
 
 #Check if Backupdirs and Destination is available
-function Check-Dir {
+function Test-Directory {
     Write-au2matorLog -Type Info -Text "Check if BackupDir and Destination exists"
     if (!(Test-Path $BackupDirs)) {
         return $false
@@ -174,7 +174,7 @@ function Check-Dir {
 }
 
 #Save all the Files
-Function Make-Backup {
+Function Start-Backup {
     Write-au2matorLog -Type Info -Text "Started the Backup"
     $BackupDirFiles = @{ } #Hash of BackupDir & Files
     $Files = @()
@@ -263,7 +263,7 @@ Write-au2matorLog -Type Info -Text "----------------------"
 Write-au2matorLog -Type Info -Text "Start the Script"
 
 #Check if Backupdir needs to be cleaned and create Backupdir
-$Count = (Get-ChildItem $Destination | where { $_.Attributes -eq "Directory" }).count
+$Count = (Get-ChildItem $Destination | Where-Object { $_.Attributes -eq "Directory" }).count
 Write-au2matorLog -Type Info -Text "Check if there are more than $Versions Directories in the Backupdir"
 
 if ($count -gt $Versions) {
@@ -272,7 +272,7 @@ if ($count -gt $Versions) {
 }
 
 
-$CountZip = (Get-ChildItem $Destination | where { $_.Attributes -eq "Archive" -and $_.Extension -eq ".zip" }).count
+$CountZip = (Get-ChildItem $Destination | Where-Object { $_.Attributes -eq "Archive" -and $_.Extension -eq ".zip" }).count
 Write-au2matorLog -Type Info -Text "Check if there are more than $Versions Zip in the Backupdir"
 
 if ($CountZip -gt $Versions) {
@@ -282,13 +282,13 @@ if ($CountZip -gt $Versions) {
 }
 
 #Check if all Dir are existing and do the Backup
-$CheckDir = Check-Dir
+$CheckDir = Test-Directory
 
 if ($CheckDir -eq $false) {
     Write-au2matorLog -Type Error -Text "One of the Directories are not available, Script has stopped"
 }
 else {
-    Make-Backup
+    Start-Backup
 
     $Enddate = Get-Date #-format dd.MM.yyyy-HH:mm:ss
     $span = $EndDate - $StartDate
@@ -342,5 +342,4 @@ else {
 }
 
 Write-Host "Press any key to close ..."
-
-$x = $host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
+$host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
